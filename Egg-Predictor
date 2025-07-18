@@ -1,10 +1,13 @@
--- Grow a Garden: Pet Egg Randomizer with ESP
+-- Visual Pet Egg Randomizer with ESP
 -- Author: Dexter
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local workspace = game:GetService("Workspace")
 local runService = game:GetService("RunService")
+
+-- 🥚 Set your egg model name here
+local egg = workspace:WaitForChild("MyEgg") -- Change "MyEgg" to your actual egg name
 
 -- Create UI
 local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
@@ -39,44 +42,21 @@ label.Font = Enum.Font.SourceSansBold
 label.TextSize = 20
 label.Text = "Pet: None"
 
--- Pet pools
-local petEggs = {
-    Common = {
-        {name = "Dog", chance = 33.33},
-        {name = "Bunny", chance = 33.33},
-        {name = "Golden Lab", chance = 33.33}
-    },
-    Bug = {
-        {name = "Snail", chance = 40},
-        {name = "Giant Ant", chance = 30},
-        {name = "Caterpillar", chance = 25},
-        {name = "Praying Mantis", chance = 4},
-        {name = "Dragonfly", chance = 1}
-    },
-    -- Add more egg types here if needed
+-- Pet pool (you can expand this)
+local petPool = {
+    "Disco Bee",
+    "Golden Lab",
+    "Snail",
+    "Dragonfly",
+    "Caterpillar"
 }
 
--- Roll pet
-local function rollPet(eggType)
-    local pool = petEggs[eggType]
-    if not pool then return nil end
-    local roll = math.random() * 100
-    local cumulative = 0
-    for _, pet in ipairs(pool) do
-        cumulative += pet.chance
-        if roll <= cumulative then
-            return pet.name
-        end
-    end
-    return pool[1].name
-end
-
 -- Create ESP label
-local function createFloatingText(egg)
+local function createFloatingText()
     local existing = egg:FindFirstChild("PetESP", true)
     if existing then return end
 
-    local targetPart = egg:FindFirstChildWhichIsA("BasePart")
+    local targetPart = egg:FindFirstChildWhichIsA("BasePart", true)
     if not targetPart then return end
 
     local esp = Instance.new("BillboardGui")
@@ -100,7 +80,7 @@ local function createFloatingText(egg)
 end
 
 -- Update ESP label
-local function updateFloatingText(egg, petName)
+local function updateFloatingText(petName)
     local esp = egg:FindFirstChild("PetESP", true)
     if esp then
         local text = esp:FindFirstChild("PetText")
@@ -110,43 +90,20 @@ local function updateFloatingText(egg, petName)
     end
 end
 
--- Find egg anywhere
-local function findEgg()
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name == "Egg" then
-            return obj
-        end
-    end
-    return nil
-end
-
 -- Button click
 button.MouseButton1Click:Connect(function()
-    local egg = findEgg()
-    if not egg then
-        label.Text = "Pet: No egg found"
-        return
-    end
-
-    local eggType = egg:GetAttribute("EggType") or "Common"
-    local petName = rollPet(eggType)
-
-    if petName then
-        egg:SetAttribute("PetInside", petName)
-        label.Text = "Pet: " .. petName
-        updateFloatingText(egg, petName)
-        print("✅ " .. eggType .. " Egg randomized: " .. petName)
-    else
-        label.Text = "Pet: Invalid egg type"
-    end
+    local petName = petPool[math.random(1, #petPool)]
+    egg:SetAttribute("PetInside", petName)
+    label.Text = "Pet: " .. petName
+    updateFloatingText(petName)
+    print("✅ Pet randomized: " .. petName)
 end)
 
--- Auto-create and update ESP
+-- Create ESP once
+createFloatingText()
+
+-- Keep ESP updated
 runService.RenderStepped:Connect(function()
-    local egg = findEgg()
-    if egg then
-        createFloatingText(egg)
-        local petName = egg:GetAttribute("PetInside") or "None"
-        updateFloatingText(egg, petName)
-    end
+    local currentPet = egg:GetAttribute("PetInside") or "None"
+    updateFloatingText(currentPet)
 end)
