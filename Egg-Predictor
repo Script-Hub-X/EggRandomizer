@@ -1,4 +1,4 @@
--- Grow a Garden: Fully Mixed Pet Egg Randomizer with Floating Text
+-- Grow a Garden: Pet Egg Randomizer with ESP
 -- Author: Dexter
 
 local Players = game:GetService("Players")
@@ -71,34 +71,41 @@ local function rollPet(eggType)
     return pool[1].name
 end
 
--- Create floating text
+-- Create ESP label
 local function createFloatingText(egg)
-    local billboard = egg:FindFirstChild("PetLabel")
-    if not billboard then
-        billboard = Instance.new("BillboardGui", egg)
-        billboard.Name = "PetLabel"
-        billboard.Size = UDim2.new(0, 200, 0, 50)
-        billboard.StudsOffset = Vector3.new(0, 3, 0)
-        billboard.AlwaysOnTop = true
+    local existing = egg:FindFirstChild("PetESP", true)
+    if existing then return end
 
-        local text = Instance.new("TextLabel", billboard)
-        text.Size = UDim2.new(1, 0, 1, 0)
-        text.BackgroundTransparency = 1
-        text.TextColor3 = Color3.new(1, 1, 1)
-        text.Font = Enum.Font.SourceSansBold
-        text.TextSize = 20
-        text.Text = "Pet: None"
-        text.Name = "PetText"
-    end
+    local targetPart = egg:FindFirstChildWhichIsA("BasePart")
+    if not targetPart then return end
+
+    local esp = Instance.new("BillboardGui")
+    esp.Name = "PetESP"
+    esp.Size = UDim2.new(0, 200, 0, 50)
+    esp.StudsOffset = Vector3.new(0, 3, 0)
+    esp.AlwaysOnTop = true
+    esp.LightInfluence = 0
+    esp.MaxDistance = 100
+    esp.Parent = targetPart
+
+    local text = Instance.new("TextLabel", esp)
+    text.Name = "PetText"
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.BackgroundTransparency = 1
+    text.TextColor3 = Color3.fromRGB(255, 255, 0)
+    text.Font = Enum.Font.GothamBold
+    text.TextSize = 18
+    text.Text = "Pet: None"
+    text.TextStrokeTransparency = 0.5
 end
 
--- Update floating text
+-- Update ESP label
 local function updateFloatingText(egg, petName)
-    local billboard = egg:FindFirstChild("PetLabel")
-    if billboard then
-        local text = billboard:FindFirstChild("PetText")
+    local esp = egg:FindFirstChild("PetESP", true)
+    if esp then
+        local text = esp:FindFirstChild("PetText")
         if text then
-            text.Text = "Pet: " .. petName
+            text.Text = petName
         end
     end
 end
@@ -134,7 +141,7 @@ button.MouseButton1Click:Connect(function()
     end
 end)
 
--- Auto-create and update floating text
+-- Auto-create and update ESP
 runService.RenderStepped:Connect(function()
     local egg = findEgg()
     if egg then
