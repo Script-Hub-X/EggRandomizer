@@ -1,109 +1,127 @@
--- Visual Pet Egg Randomizer with ESP
--- Author: Dexter
-
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
 local player = Players.LocalPlayer
-local workspace = game:GetService("Workspace")
-local runService = game:GetService("RunService")
+local mouse = player:GetMouse()
 
--- 🥚 Set your egg model name here
-local egg = workspace:WaitForChild("MyEgg") -- Change "MyEgg" to your actual egg name
-
--- Create UI
-local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-gui.Name = "PetUI"
-gui.ResetOnSpawn = false
-
--- Draggable frame
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 240, 0, 100)
-frame.Position = UDim2.new(0.5, -120, 0.8, 0)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.Active = true
-frame.Draggable = true
-
--- Button
-local button = Instance.new("TextButton", frame)
-button.Size = UDim2.new(1, -20, 0, 40)
-button.Position = UDim2.new(0, 10, 0, 10)
-button.Text = "Replace Pet Inside Egg"
-button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-button.TextColor3 = Color3.new(1, 1, 1)
-button.Font = Enum.Font.SourceSansBold
-button.TextSize = 18
-
--- Label
-local label = Instance.new("TextLabel", frame)
-label.Size = UDim2.new(1, -20, 0, 30)
-label.Position = UDim2.new(0, 10, 0, 55)
-label.BackgroundTransparency = 1
-label.TextColor3 = Color3.new(1, 1, 1)
-label.Font = Enum.Font.SourceSansBold
-label.TextSize = 20
-label.Text = "Pet: None"
-
--- Pet pool (you can expand this)
-local petPool = {
-    "Disco Bee",
-    "Golden Lab",
-    "Snail",
-    "Dragonfly",
-    "Caterpillar"
+-- PET DATA
+local petTable = {
+    ["Common Egg"] = { "Dog", "Bunny", "Golden Lab" },
+    ["Uncommon Egg"] = { "Chicken", "Black Bunny", "Cat", "Deer" },
+    ["Rare Egg"] = { "Pig", "Monkey", "Rooster", "Orange Tabby", "Spotted Deer" },
+    ["Legendary Egg"] = { "Cow", "Polar Bear", "Sea Otter", "Turtle", "Silver Monkey" },
+    ["Mythical Egg"] = { "Grey Mouse", "Brown Mouse", "Squirrel", "Red Giant Ant" },
+    ["Bug Egg"] = { "Snail", "Caterpillar", "Giant Ant", "Praying Mantis" },
+    ["Night Egg"] = { "Frog", "Hedgehog", "Mole", "Echo Frog", "Night Owl" },
+    ["Bee Egg"] = { "Bee", "Honey Bee", "Bear Bee", "Petal Bee" },
+    ["Anti Bee Egg"] = { "Wasp", "Moth", "Tarantula Hawk" },
+    ["Oasis Egg"] = { "Meerkat", "Sand Snake", "Axolotl" },
+    ["Paradise Egg"] = { "Ostrich", "Peacock", "Capybara" },
+    ["Dinosaur Egg"] = { "Raptor", "Triceratops", "Stegosaurus" },
+    ["Primal Egg"] = { "Parasaurolophus", "Iguanodon", "Pachycephalosaurus" },
+    ["Zen Egg"] = { "Shiba Inu", "Nihonzaru", "Tanuki" },
 }
 
--- Create ESP label
-local function createFloatingText()
-    local existing = egg:FindFirstChild("PetESP", true)
-    if existing then return end
+local espEnabled = true
+local truePetMap = {}
 
-    local targetPart = egg:FindFirstChildWhichIsA("BasePart", true)
-    if not targetPart then return end
-
-    local esp = Instance.new("BillboardGui")
-    esp.Name = "PetESP"
-    esp.Size = UDim2.new(0, 200, 0, 50)
-    esp.StudsOffset = Vector3.new(0, 3, 0)
-    esp.AlwaysOnTop = true
-    esp.LightInfluence = 0
-    esp.MaxDistance = 100
-    esp.Parent = targetPart
-
-    local text = Instance.new("TextLabel", esp)
-    text.Name = "PetText"
-    text.Size = UDim2.new(1, 0, 1, 0)
-    text.BackgroundTransparency = 1
-    text.TextColor3 = Color3.fromRGB(255, 255, 0)
-    text.Font = Enum.Font.GothamBold
-    text.TextSize = 18
-    text.Text = "Pet: None"
-    text.TextStrokeTransparency = 0.5
+--🔀 Return a randomized pet name from egg type
+local function getRandomPet(eggType)
+    local pets = petTable[eggType]
+    if pets then
+        return pets[math.random(1, #pets)]
+    end
+    return "Unknown"
 end
 
--- Update ESP label
-local function updateFloatingText(petName)
-    local esp = egg:FindFirstChild("PetESP", true)
-    if esp then
-        local text = esp:FindFirstChild("PetText")
-        if text then
-            text.Text = petName
+--🌀 Glitchy highlight text effect
+local function glitchLabelEffect(label)
+    coroutine.wrap(function()
+        local original = label.TextColor3
+        for _ = 1, 2 do
+            label.TextColor3 = Color3.fromRGB(255, 0, 0)
+            wait(0.07)
+            label.TextColor3 = original
+            wait(0.07)
+        end
+    end)()
+end
+
+--🟨 Add ESP to an egg with pet preview
+local function applyEggESP(eggModel, petName)
+    if not espEnabled then return end
+
+    local existing = eggModel:FindFirstChild("PetBillboard", true)
+    if existing then existing:Destroy() end
+    local highlight = eggModel:FindFirstChild("ESPHighlight")
+    if highlight then highlight:Destroy() end
+
+    local basePart = eggModel:FindFirstChildWhichIsA("BasePart")
+    if not basePart then return end
+
+    local isReady = true
+    local hatchTime = eggModel:FindFirstChild("HatchTime")
+    local readyFlag = eggModel:FindFirstChild("ReadyToHatch")
+
+    if (hatchTime and hatchTime:IsA("NumberValue") and hatchTime.Value > 0)
+        or (readyFlag and readyFlag:IsA("BoolValue") and not readyFlag.Value) then
+        isReady = false
+    end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "PetBillboard"
+    billboard.Size = UDim2.new(0, 270, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 4.5, 0)
+    billboard.AlwaysOnTop = true
+    billboard.MaxDistance = 500
+    billboard.Parent = basePart
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = eggModel.Name .. " | " .. petName
+    label.TextColor3 = isReady and Color3.new(1, 1, 1) or Color3.fromRGB(160, 160, 160)
+    label.TextStrokeTransparency = isReady and 0 or 0.5
+    if not isReady then label.Text = label.Text .. " (Not Ready)" end
+    label.TextScaled = true
+    label.Font = Enum.Font.FredokaOne
+    label.Parent = billboard
+
+    glitchLabelEffect(label)
+
+    local newHighlight = Instance.new("Highlight")
+    newHighlight.Name = "ESPHighlight"
+    newHighlight.FillColor = Color3.fromRGB(255, 200, 0)
+    newHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    newHighlight.FillTransparency = 0.7
+    newHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    newHighlight.Adornee = eggModel
+    newHighlight.Parent = eggModel
+end
+
+--🔴 Removes ESP components from an egg
+local function removeEggESP(eggModel)
+    local label = eggModel:FindFirstChild("PetBillboard", true)
+    if label then label:Destroy() end
+
+    local highlight = eggModel:FindFirstChild("ESPHighlight")
+    if highlight then highlight:Destroy() end
+end
+
+-- Example usage: loop over eggs and apply ESP with random pets
+local function scanAndApplyESP()
+    for _, egg in pairs(Workspace:GetDescendants()) do
+        if egg:IsA("Model") and petTable[egg.Name] then
+            local petName = getRandomPet(egg.Name)
+            applyEggESP(egg, petName)
         end
     end
 end
 
--- Button click
-button.MouseButton1Click:Connect(function()
-    local petName = petPool[math.random(1, #petPool)]
-    egg:SetAttribute("PetInside", petName)
-    label.Text = "Pet: " .. petName
-    updateFloatingText(petName)
-    print("✅ Pet randomized: " .. petName)
-end)
-
--- Create ESP once
-createFloatingText()
-
--- Keep ESP updated
-runService.RenderStepped:Connect(function()
-    local currentPet = egg:GetAttribute("PetInside") or "None"
-    updateFloatingText(currentPet)
+-- Optional: Call scan on game load
+RunService.RenderStepped:Connect(function()
+    pcall(scanAndApplyESP)
 end)
